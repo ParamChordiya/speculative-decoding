@@ -3,7 +3,7 @@
 A from-scratch speculative decoding inference engine built in PyTorch.  
 The goal is to deeply understand, implement, and benchmark speculative decoding — measuring real latency, token acceptance rates, and speedup across multiple draft/target model pairs.
 
-> **Status:** Infrastructure and data pipeline complete. Core decoding engine in progress.
+> **Status:** Infrastructure, data pipeline, and model layer complete. Core decoding engine in progress.
 
 ---
 
@@ -41,7 +41,7 @@ speculative-decoding/
 │   │   ├── registry.py        ✅  ModelPair dataclass + 4 registered pairs
 │   │   ├── loader.py          ✅  load_model() — HuggingFace weights + dtype handling
 │   │   ├── ollama_loader.py   ✅  Ollama convenience wrapper (hardware validation only)
-│   │   └── wrapper.py         🔲  Unified model interface (not yet implemented)
+│   │   └── wrapper.py         ✅  ModelWrapper — forward pass + KV cache management
 │   │
 │   ├── decoding/
 │   │   ├── autoregressive.py  🔲  Baseline token-by-token generation
@@ -62,7 +62,8 @@ speculative-decoding/
 │
 ├── configs/                   🔲  YAML experiment configs (not yet populated)
 ├── benchmarks/                🔲  Benchmark entry-point scripts
-├── tests/                     🔲  Unit + integration tests
+├── tests/
+│   └── test_kv_cache.py       ✅  17 integration tests for KV cache shape + truncation
 ├── notebooks/                 🔲  Analysis notebooks
 ├── results/                   (gitignored — generated outputs)
 ├── figures/                   (gitignored — generated plots)
@@ -223,6 +224,71 @@ print(code_prompts[0].token_count)
 
 ---
 
+### Use ModelWrapper for forward passes and KV cache control
+
+`ModelWrapper` is the interface every decoding component uses to talk to a
+model. It exposes forward passes, cache length queries, and — critically —
+`truncate_cache()`, which rolls the KV cache back to an arbitrary position
+when speculative decoding rejects a draft token.
+
+```python
+import torch
+from src.models.loader import load_model
+from src.models.wrapper import ModelWrapper
+
+model, tokenizer = load_model("gpt2", "float32")
+device = next(model.parameters()).device
+wrapper = ModelWrapper(model, tokenizer, device)
+
+# --- Prefill ---
+prompt_ids = tokenizer.encode("The quick brown fox", return_tensors="pt").to(device)
+logits, cache = wrapper.forward(prompt_ids)
+
+print(wrapper.get_cache_length(cache))   # 4  (one entry per prompt token)
+# logits shape: [1, 4, 50257]
+
+# --- Decode one token ---
+next_token = logits[:, -1, :].argmax(dim=-1, keepdim=True)   # greedy
+logits, cache = wrapper.forward(next_token, past_key_values=cache)
+print(wrapper.get_cache_length(cache))   # 5
+
+# --- Simulate rejection at position 3: roll back to position 3 ---
+cache = wrapper.truncate_cache(cache, keep_length=3)
+print(wrapper.get_cache_length(cache))   # 3
+
+# Continue from position 3 with a replacement token
+replacement = torch.tensor([[1234]]).to(device)
+logits, cache = wrapper.forward(replacement, past_key_values=cache)
+print(wrapper.get_cache_length(cache))   # 4
+```
+
+**KV cache shape** — every tensor inside `past_key_values` has shape
+`[batch, num_heads, seq_len, head_dim]`. For GPT-2 small that is
+`[1, 12, seq_len, 64]` per layer across 12 layers.
+
+---
+
+### Run the test suite
+
+```bash
+# All tests (requires GPT-2 weights — ~500 MB download on first run)
+pytest tests/test_kv_cache.py -v
+
+# Just shape checks (faster)
+pytest tests/test_kv_cache.py -v -k "Shape"
+```
+
+**17 tests across 4 classes:**
+
+| Class | What it checks |
+|---|---|
+| `TestCacheShape` | `len(past_kv)==12`, each entry is `(key, value)`, shapes `[1, 12, 20, 64]`, `get_cache_length` |
+| `TestCacheTruncation` | Shapes after `keep_length=10`, truncate to 1, original cache unmodified |
+| `TestForwardWithCache` | Logits `[1, 1, 50257]` after truncated-cache pass, cache grows by 1, `use_cache=False`→`None` |
+| `TestProperties` | `vocab_size`, `param_count`, `memory_footprint_mb`, `repr` |
+
+---
+
 ### Quick hardware validation with Ollama
 
 If you have [Ollama](https://ollama.com) installed, use this to check whether
@@ -285,12 +351,13 @@ VRAM requirements (approximate):
 - [x] HuggingFace model loader with dtype handling (fp16, bf16, fp32, int4)
 - [x] Ollama convenience loader for hardware validation
 - [x] 150-prompt benchmark dataset across code / conversation / summarization
+- [x] `ModelWrapper` — forward pass, KV cache truncation, cache length utilities
+- [x] `tests/test_kv_cache.py` — 17 integration tests covering cache shape, truncation, and forward-with-cache
 
 ### Phase 2 — Core Decoding Engine 🔲
 - [ ] `src/decoding/autoregressive.py` — baseline greedy/sampling loop with KV cache
 - [ ] `src/decoding/rejection.py` — rejection sampling + adjusted distribution
 - [ ] `src/decoding/speculative.py` — full speculative decoding loop (K draft tokens → parallel target verification)
-- [ ] `src/models/wrapper.py` — unified draft/target interface
 
 ### Phase 3 — Profiling 🔲
 - [ ] `src/profiling/timer.py` — CUDA event-based latency measurement
