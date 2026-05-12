@@ -1,0 +1,92 @@
+[
+  {
+    "prompt_id": "code_000",
+    "domain": "code",
+    "raw_text": "from typing import List\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n",
+    "token_count": 141
+  },
+  {
+    "prompt_id": "code_001",
+    "domain": "code",
+    "raw_text": "from typing import List\n\n\ndef separate_paren_groups(paren_string: str) -> List[str]:\n    \"\"\" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to\n    separate those group into separate strings and return the list of those.\n    Separate groups are balanced (each open brace is properly closed) and not nested within each other\n    Ignore any spaces in the input string.\n    >>> separate_paren_groups('( ) (( )) (( )( ))')\n    ['()', '(())', '(()())']\n    \"\"\"\n",
+    "token_count": 139
+  },
+  {
+    "prompt_id": "code_002",
+    "domain": "code",
+    "raw_text": "\n\ndef truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n",
+    "token_count": 104
+  },
+  {
+    "prompt_id": "code_003",
+    "domain": "code",
+    "raw_text": "from typing import List\n\n\ndef below_zero(operations: List[int]) -> bool:\n    \"\"\" You're given a list of deposit and withdrawal operations on a bank account that starts with\n    zero balance. Your task is to detect if at any point the balance of account fallls below zero, and\n    at that point function should return True. Otherwise it should return False.\n    >>> below_zero([1, 2, 3])\n    False\n    >>> below_zero([1, 2, -4, 5])\n    True\n    \"\"\"\n",
+    "token_count": 137
+  },
+  {
+    "prompt_id": "code_004",
+    "domain": "code",
+    "raw_text": "from typing import List\n\n\ndef mean_absolute_deviation(numbers: List[float]) -> float:\n    \"\"\" For a given list of input numbers, calculate Mean Absolute Deviation\n    around the mean of this dataset.\n    Mean Absolute Deviation is the average absolute difference between each\n    element and a centerpoint (mean in this case):\n    MAD = average | x - x_mean |\n    >>> mean_absolute_deviation([1.0, 2.0, 3.0, 4.0])\n    1.0\n    \"\"\"\n",
+    "token_count": 138
+  },
+  {
+    "prompt_id": "conversation_000",
+    "domain": "conversation",
+    "raw_text": "Give three tips for staying healthy.",
+    "token_count": 7
+  },
+  {
+    "prompt_id": "conversation_001",
+    "domain": "conversation",
+    "raw_text": "What are the three primary colors?",
+    "token_count": 7
+  },
+  {
+    "prompt_id": "conversation_002",
+    "domain": "conversation",
+    "raw_text": "Describe the structure of an atom.",
+    "token_count": 8
+  },
+  {
+    "prompt_id": "conversation_003",
+    "domain": "conversation",
+    "raw_text": "How can we reduce air pollution?",
+    "token_count": 7
+  },
+  {
+    "prompt_id": "conversation_004",
+    "domain": "conversation",
+    "raw_text": "Describe a time when you had to make a difficult decision.",
+    "token_count": 13
+  },
+  {
+    "prompt_id": "summarization_000",
+    "domain": "summarization",
+    "raw_text": "(CNN)The Palestinian Authority officially became the 123rd member of the International Criminal Court on Wednesday, a step that gives the court jurisdiction over alleged crimes in Palestinian territories. The formal accession was marked with a ceremony at The Hague, in the Netherlands, where the court is based. The Palestinians signed the ICC's founding Rome Statute in January, when they also accepted its jurisdiction over alleged crimes committed \"in the occupied Palestinian territory, including East Jerusalem, since June 13, 2014.\" Later that month, the ICC opened a preliminary examination into the situation in Palestinian territories, paving the way for possible war crimes investigations against Israelis. As members of the court, Palestinians may be subject to counter-charges as well. Israel and the United States, neither of which is an ICC member, opposed the Palestinians' efforts to join the body. But Palestinian Foreign Minister Riad al-Malki, speaking at Wednesday's ceremony, said it was a move toward greater justice. \"As Palestine formally becomes a State Party to the Rome Statute today, the world is also a step closer to ending a long era of impunity and injustice,\" he said, according to an ICC news release. \"Indeed, today brings us closer to our shared goals of justice and peace.\" Judge Kuniko Ozaki, a vice president of the ICC, said acceding to the treaty was just the first step for the Palestinians. \"As the Rome Statute today enters into force for the State of Palestine, Palestine acquires all the rights as well as responsibilities that come with being a State Party to the Statute. These are substantive commitments, which cannot be taken lightly,\" she said. Rights group Human Rights Watch welcomed the development. \"Governments seeking to penalize Palestine for joining the ICC should immediately end their pressure, and countries that support universal acceptance of the court's treaty should speak out to welcome its membership,\" said Balkees Jarrah, international justice counsel for the group. \"What's objectionable is the attempts to undermine international justice, not Palestine's decision to join a treaty to which over 100 countries around the world are members.\" In January, when the preliminary ICC examination was opened, Israeli Prime Minister Benjamin Netanyahu described it as an outrage, saying the court was overstepping its boundaries. The United States also said it \"strongly\" disagreed with the court's decision. \"As we have said repeatedly, we do not believe that Palestine is a state and therefore we do not believe that it is eligible to join the ICC,\" the State Department said in a statement. It urged the\n\nSummarize the above article:",
+    "token_count": 521
+  },
+  {
+    "prompt_id": "summarization_001",
+    "domain": "summarization",
+    "raw_text": "(CNN)Never mind cats having nine lives. A stray pooch in Washington State has used up at least three of her own after being hit by a car, apparently whacked on the head with a hammer in a misguided mercy killing and then buried in a field -- only to survive. That's according to Washington State University, where the dog -- a friendly white-and-black bully breed mix now named Theia -- has been receiving care at the Veterinary Teaching Hospital. Four days after her apparent death, the dog managed to stagger to a nearby farm, dirt-covered and emaciated, where she was found by a worker who took her to a vet for help. She was taken in by Moses Lake, Washington, resident Sara Mellado. \"Considering everything that she's been through, she's incredibly gentle and loving,\" Mellado said, according to WSU News. \"She's a true miracle dog and she deserves a good life.\" Theia is only one year old but the dog's brush with death did not leave her unscathed. She suffered a dislocated jaw, leg injuries and a caved-in sinus cavity -- and still requires surgery to help her breathe. The veterinary hospital's Good Samaritan Fund committee awarded some money to help pay for the dog's treatment, but Mellado has set up a fundraising page to help meet the remaining cost of the dog's care. She's also created a Facebook page to keep supporters updated. Donors have already surpassed the $10,000 target, inspired by Theia's tale of survival against the odds. On the fundraising page, Mellado writes, \"She is in desperate need of extensive medical procedures to fix her nasal damage and reset her jaw. I agreed to foster her until she finally found a loving home.\" She is dedicated to making sure Theia gets the medical attention she needs, Mellado adds, and wants to \"make sure she gets placed in a family where this will never happen to her again!\" Any additional funds raised will be \"paid forward\" to help other animals. Theia is not the only animal to apparently rise from the grave in recent weeks. A cat in Tampa, Florida, found seemingly dead after he was hit by a car in January, showed up alive in a neighbor's yard five days after he was buried by his owner. The cat was in bad shape, with maggots covering open wounds on his body and a ruined left eye, but remarkably survived with the help of treatment from the Humane Society.\n\nSummarize the above article:",
+    "token_count": 515
+  },
+  {
+    "prompt_id": "summarization_002",
+    "domain": "summarization",
+    "raw_text": "(CNN)If you've been following the news lately, there are certain things you doubtless know about Mohammad Javad Zarif. He is, of course, the Iranian foreign minister. He has been U.S. Secretary of State John Kerry's opposite number in securing a breakthrough in nuclear discussions that could lead to an end to sanctions against Iran -- if the details can be worked out in the coming weeks. And he received a hero's welcome as he arrived in Iran on a sunny Friday morning. \"Long live Zarif,\" crowds chanted as his car rolled slowly down the packed street. You may well have read that he is \"polished\" and, unusually for one burdened with such weighty issues, \"jovial.\" An Internet search for \"Mohammad Javad Zarif\" and \"jovial\" yields thousands of results. He certainly has gone a long way to bring Iran in from the cold and allow it to rejoin the international community. But there are some facts about Zarif that are less well-known. Here are six: . In September 2013, Zarif tweeted \"Happy Rosh Hashanah,\" referring to the Jewish New Year. That prompted Christine Pelosi, the daughter of House Minority Leader Nancy Pelosi, to respond with a tweet of her own: \"Thanks. The New Year would be even sweeter if you would end Iran's Holocaust denial, sir.\" And, perhaps to her surprise, Pelosi got a response. \"Iran never denied it,\" Zarif tweeted back. \"The man who was perceived to be denying it is now gone. Happy New Year.\" The reference was likely to former Iranian President Mahmoud Ahmadinejad, who had left office the previous month. Zarif was nominated to be foreign minister by Ahmadinejad's successor, Hassan Rouhami. His foreign ministry notes, perhaps defensively, that \"due to the political and security conditions of the time, he decided to continue his education in the United States.\" That is another way of saying that he was outside the country during the demonstrations against the Shah of Iran, which began in 1977, and during the Iranian Revolution, which drove the shah from power in 1979. Zarif left the country in 1977, received his undergraduate degree from San Francisco State University in 1981, his master's in international relations from the University of Denver in 1984 and his doctorate from the University of Denver in 1988. Both of his children were born in the United States. The website of the Iranian Foreign Ministry, which Zarif runs, cannot even agree with itself\n\nSummarize the above article:",
+    "token_count": 521
+  },
+  {
+    "prompt_id": "summarization_003",
+    "domain": "summarization",
+    "raw_text": "(CNN)Five Americans who were monitored for three weeks at an Omaha, Nebraska, hospital after being exposed to Ebola in West Africa have been released, a Nebraska Medicine spokesman said in an email Wednesday. One of the five had a heart-related issue on Saturday and has been discharged but hasn't left the area, Taylor Wilson wrote. The others have already gone home. They were exposed to Ebola in Sierra Leone in March, but none developed the deadly virus. They are clinicians for Partners in Health, a Boston-based aid group. They all had contact with a colleague who was diagnosed with the disease and is being treated at the National Institutes of Health in Bethesda, Maryland. As of Monday, that health care worker is in fair condition. The Centers for Disease Control and Prevention in Atlanta has said the last of 17 patients who were being monitored are expected to be released by Thursday. More than 10,000 people have died in a West African epidemic of Ebola that dates to December 2013, according to the World Health Organization. Almost all the deaths have been in Guinea, Liberia and Sierra Leone. Ebola is spread by direct contact with the bodily fluids of an infected person.\n\nSummarize the above article:",
+    "token_count": 242
+  },
+  {
+    "prompt_id": "summarization_004",
+    "domain": "summarization",
+    "raw_text": "(CNN)A Duke student has admitted to hanging a noose made of rope from a tree near a student union, university officials said Thursday. The prestigious private school didn't identify the student, citing federal privacy laws. In a news release, it said the student was no longer on campus and will face student conduct review. The student was identified during an investigation by campus police and the office of student affairs and admitted to placing the noose on the tree early Wednesday, the university said. Officials are still trying to determine if other people were involved. Criminal investigations into the incident are ongoing as well. Students and faculty members marched Wednesday afternoon chanting \"We are not afraid. We stand together,\"  after pictures of the noose were passed around on social media. At a forum held on the steps of Duke Chapel, close to where the noose was discovered at 2 a.m., hundreds of people gathered. \"You came here for the reason that you want to say with me, 'This is no Duke we will accept. This is no Duke we want. This is not the Duke we're here to experience. And this is not the Duke we're here to create,' \" Duke President Richard Brodhead told the crowd. The incident is one of several recent racist events to affect college students. Last month a fraternity at the University of Oklahoma had its charter removed after a video surfaced showing members using the N-word and referring to lynching in a chant. Two students were expelled. In February, a noose was hung around the neck of a statue of a famous civil rights figure at the University of Mississippi. A statement issued by Duke said there was a previous report of hate speech directed at students on campus. In the news release, the vice president for student affairs called the noose incident a \"cowardly act.\" \"To whomever committed this hateful and stupid act, I just want to say that if your intent was to create fear, it will have the opposite effect,\" Larry Moneta said Wednesday. Duke University is a private college with about 15,000 students in Durham, North Carolina. CNN's Dave Alsup contributed to this report.\n\nSummarize the above article:",
+    "token_count": 443
+  }
+]
