@@ -3,7 +3,7 @@
 A from-scratch speculative decoding inference engine built in PyTorch.  
 The goal is to deeply understand, implement, and benchmark speculative decoding — measuring real latency, token acceptance rates, and speedup across multiple draft/target model pairs.
 
-> **Status:** Infrastructure, data pipeline, model layer, and profiling foundation complete. Core decoding engine in progress.
+> **Status:** Infrastructure, data pipeline, model layer, profiling foundation, and autoregressive baseline complete. Speculative decoding loop next.
 
 ---
 
@@ -44,7 +44,7 @@ speculative-decoding/
 │   │   └── wrapper.py         ✅  ModelWrapper — forward pass + KV cache management
 │   │
 │   ├── decoding/
-│   │   ├── autoregressive.py  🔲  Baseline token-by-token generation
+│   │   ├── autoregressive.py  ✅  Baseline token-by-token generation with per-token timing
 │   │   ├── speculative.py     🔲  Speculative decoding loop
 │   │   └── rejection.py       🔲  Rejection sampling + adjusted distribution
 │   │
@@ -63,9 +63,10 @@ speculative-decoding/
 ├── configs/                   🔲  YAML experiment configs (not yet populated)
 ├── benchmarks/                🔲  Benchmark entry-point scripts
 ├── tests/
-│   ├── test_kv_cache.py       ✅  17 integration tests for KV cache shape + truncation
-│   ├── test_timer.py          ✅  26 tests for GPU timing utilities (CPU + CUDA tiers)
-│   └── test_metrics.py        ✅  66 tests for GenerationResult + BenchmarkConfig
+│   ├── test_kv_cache.py          ✅  21 integration tests for KV cache shape + truncation
+│   ├── test_timer.py             ✅  26 tests for GPU timing utilities (CPU + CUDA tiers)
+│   ├── test_metrics.py           ✅  66 tests for GenerationResult + BenchmarkConfig
+│   └── test_autoregressive.py   ✅  22 tests for AutoregressiveDecoder (incl. HF match)
 ├── notebooks/                 🔲  Analysis notebooks
 ├── results/                   (gitignored — generated outputs)
 ├── figures/                   (gitignored — generated plots)
@@ -280,7 +281,7 @@ pytest tests/test_kv_cache.py -v
 pytest tests/test_kv_cache.py -v -k "Shape"
 ```
 
-**17 tests across 4 classes:**
+**21 tests across 4 classes:**
 
 | Class | What it checks |
 |---|---|
@@ -396,19 +397,72 @@ print(config.config_hash())     # e.g. "a3f9c1b20d44"  (12-char SHA-256 prefix)
 
 ---
 
+### Generate text with AutoregressiveDecoder
+
+`AutoregressiveDecoder` implements the baseline generation loop with explicit
+KV cache management and GPU-synchronised per-token latency measurement.  It
+does **not** use `model.generate()` — it builds the loop explicitly so every
+timing measurement reflects real GPU work.
+
+```python
+import torch
+from src.models.loader import load_model
+from src.models.wrapper import ModelWrapper
+from src.decoding.autoregressive import AutoregressiveDecoder
+
+model, tokenizer = load_model("gpt2", "float32")
+device = next(model.parameters()).device
+wrapper = ModelWrapper(model, tokenizer, device)
+decoder = AutoregressiveDecoder(wrapper)
+
+# --- Token-ID interface (returns GenerationResult) ---
+prompt_ids = tokenizer.encode("The quick brown fox", return_tensors="pt").to(device)
+result = decoder.generate(prompt_ids, max_new_tokens=50, temperature=0.0)
+
+print(result.num_tokens)           # ≤ 50
+print(f"{result.tokens_per_second:.1f} tok/s")
+print(f"p50={result.latency_p50*1000:.0f}ms  p95={result.latency_p95*1000:.0f}ms")
+print(result.summary())
+# AR  | 50 tok | 63.2 tok/s | p50=15ms p95=21ms | mem=0MB
+
+# --- Plain-text convenience wrapper ---
+text = decoder.generate_text("The quick brown fox", max_new_tokens=50, temperature=0.0)
+print(text)
+
+# --- Temperature sampling ---
+result_sampled = decoder.generate(prompt_ids, max_new_tokens=50, temperature=0.8)
+```
+
+**Two-phase generation loop:**
+
+| Phase | What happens | Why |
+|---|---|---|
+| **Prefill** | Full prompt processed in one parallel forward pass | All prompt tokens are known upfront — no sequential dependency |
+| **Decode** | One token generated per step using cached K/V | Each new token depends on the previously sampled token |
+
+The `time_to_first_token` field in `GenerationResult` measures prefill latency
+— the time a user waits before seeing any output. Subsequent tokens use the KV
+cache and are faster (GEMV vs GEMM).
+
+---
+
 ### Run the full test suite
 
 ```bash
-# Everything (109 tests total) — only test_kv_cache requires model weights
+# Everything (132 tests total) — only test_kv_cache and test_autoregressive require model weights
 pytest tests/ -v
 
 # Individual suites
-pytest tests/test_metrics.py  -v          # 66 tests, no GPU or model needed
-pytest tests/test_timer.py    -v          # 26 tests, CUDA tier auto-skipped on CPU
-pytest tests/test_kv_cache.py -v          # 17 tests, downloads GPT-2 on first run
+pytest tests/test_metrics.py        -v    # 66 tests, no GPU or model needed
+pytest tests/test_timer.py          -v    # 26 tests, CUDA tier auto-skipped on CPU
+pytest tests/test_kv_cache.py       -v    # 21 tests, downloads GPT-2 on first run
+pytest tests/test_autoregressive.py -v    # 22 tests, includes HF greedy-match check
 
 # Skip CUDA-only timer tests on a CPU machine
 pytest tests/test_timer.py -v -k "not cuda"
+
+# Skip the slower HF-match parametrised tests
+pytest tests/test_autoregressive.py -v -k "not hf_match"
 ```
 
 **Test coverage by file:**
@@ -417,7 +471,8 @@ pytest tests/test_timer.py -v -k "not cuda"
 |---|---|---|
 | `test_metrics.py` | 66 | numpy only |
 | `test_timer.py` | 26 (18 CPU + 8 CUDA) | torch; CUDA tier skipped if no GPU |
-| `test_kv_cache.py` | 17 | torch + transformers + GPT-2 weights |
+| `test_kv_cache.py` | 21 | torch + transformers + GPT-2 weights |
+| `test_autoregressive.py` | 22 | torch + transformers + GPT-2 weights |
 
 ---
 
@@ -486,10 +541,10 @@ VRAM requirements (approximate):
 - [x] `ModelWrapper` — forward pass, KV cache truncation, cache length utilities
 - [x] `CUDATimer` / `CUDATimerCollection` — GPU-event-based latency measurement
 - [x] `GenerationResult` + `BenchmarkConfig` — result dataclasses with JSON serialisation
-- [x] 109 tests across `test_kv_cache.py`, `test_timer.py`, `test_metrics.py`
+- [x] 132 tests across `test_kv_cache.py`, `test_timer.py`, `test_metrics.py`, `test_autoregressive.py`
 
 ### Phase 2 — Core Decoding Engine 🔲
-- [ ] `src/decoding/autoregressive.py` — baseline greedy/sampling loop with KV cache
+- [x] `src/decoding/autoregressive.py` — baseline greedy/sampling loop with per-token GPU timing ✅
 - [ ] `src/decoding/rejection.py` — rejection sampling + adjusted distribution
 - [ ] `src/decoding/speculative.py` — full speculative decoding loop (K draft tokens → parallel target verification)
 
