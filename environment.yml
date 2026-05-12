@@ -1,0 +1,27 @@
+name: speculative-decoding
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+    - torch==2.3.0
+    - torchvision==0.18.0
+    - torchaudio==2.3.0
+    - --extra-index-url https://download.pytorch.org/whl/cu121
+    - transformers==4.44.0
+    - accelerate
+    - datasets
+    - tokenizers
+    - bitsandbytes
+    - auto-gptq
+    - matplotlib
+    - seaborn
+    - pandas
+    - scipy
+    - pytest
+    - pyyaml
+    - tensorboard

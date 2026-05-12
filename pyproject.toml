@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "speculative-decoding"
+version = "0.1.0"
+description = "A from-scratch speculative decoding inference engine in PyTorch."
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.3.0",
+    "transformers==4.44.0",
+    "accelerate",
+    "datasets",
+    "tokenizers",
+    "bitsandbytes",
+    "auto-gptq",
+    "matplotlib",
+    "seaborn",
+    "pandas",
+    "scipy",
+    "pyyaml",
+    "tensorboard",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
