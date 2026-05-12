@@ -3,7 +3,7 @@
 A from-scratch speculative decoding inference engine built in PyTorch.  
 The goal is to deeply understand, implement, and benchmark speculative decoding — measuring real latency, token acceptance rates, and speedup across multiple draft/target model pairs.
 
-> **Status:** Infrastructure, data pipeline, and model layer complete. Core decoding engine in progress.
+> **Status:** Infrastructure, data pipeline, model layer, and profiling foundation complete. Core decoding engine in progress.
 
 ---
 
@@ -49,9 +49,9 @@ speculative-decoding/
 │   │   └── rejection.py       🔲  Rejection sampling + adjusted distribution
 │   │
 │   ├── profiling/
-│   │   ├── timer.py           🔲  CUDA-aware latency timers
+│   │   ├── timer.py           ✅  cuda_sync_time, CUDATimer, CUDATimerCollection
 │   │   ├── memory.py          🔲  GPU memory tracking
-│   │   └── metrics.py         🔲  Token acceptance rate, speedup aggregation
+│   │   └── metrics.py         ✅  GenerationResult + BenchmarkConfig dataclasses
 │   │
 │   ├── data/
 │   │   └── prompts.py         ✅  PromptDataset — 150 prompts across 3 domains
@@ -63,7 +63,9 @@ speculative-decoding/
 ├── configs/                   🔲  YAML experiment configs (not yet populated)
 ├── benchmarks/                🔲  Benchmark entry-point scripts
 ├── tests/
-│   └── test_kv_cache.py       ✅  17 integration tests for KV cache shape + truncation
+│   ├── test_kv_cache.py       ✅  17 integration tests for KV cache shape + truncation
+│   ├── test_timer.py          ✅  26 tests for GPU timing utilities (CPU + CUDA tiers)
+│   └── test_metrics.py        ✅  66 tests for GenerationResult + BenchmarkConfig
 ├── notebooks/                 🔲  Analysis notebooks
 ├── results/                   (gitignored — generated outputs)
 ├── figures/                   (gitignored — generated plots)
@@ -289,6 +291,136 @@ pytest tests/test_kv_cache.py -v -k "Shape"
 
 ---
 
+### Time GPU operations with CUDATimer
+
+`CUDATimer` uses CUDA Events recorded inside the GPU stream for precise
+measurement without pipeline stalls. `CUDATimerCollection` manages named
+phases — draft, verify, sample — the same way the speculative decoding loop
+will use it.
+
+```python
+import torch
+from src.profiling.timer import CUDATimer, CUDATimerCollection, cuda_sync_time
+
+# --- Single operation ---
+with CUDATimer() as t:
+    result = torch.mm(
+        torch.randn(2048, 2048, device="cuda"),
+        torch.randn(2048, 2048, device="cuda"),
+    )
+print(f"matmul: {t.elapsed_ms:.2f} ms")
+
+# --- Multi-phase profiling ---
+timers = CUDATimerCollection()
+
+timers.start("draft")
+# ... draft model forward passes ...
+timers.stop("draft")
+
+timers.start("verify")
+# ... target model verification pass ...
+timers.stop("verify")
+
+print(timers)
+# CUDATimerCollection:
+#   draft  :    1.243 ms
+#   verify :    4.817 ms
+
+print(timers.summary())   # {'draft': 1.243, 'verify': 4.817}
+```
+
+On CPU-only machines both classes fall back to `time.perf_counter()` automatically.
+
+---
+
+### Use GenerationResult and BenchmarkConfig
+
+Both decoders will return a `GenerationResult`. Speculative runs populate the
+extra fields; autoregressive runs leave them as `None`. `BenchmarkConfig`
+describes what was measured and produces a stable hash for deduplication.
+
+```python
+from src.profiling.metrics import GenerationResult, BenchmarkConfig
+
+# --- Build a result (normally returned by the decoder) ---
+result = GenerationResult(
+    generated_ids=[1, 2, 3, 4, 5],
+    per_token_latencies=[0.08, 0.09, 0.08, 0.10, 0.09],   # seconds
+    total_time=0.44,
+    peak_memory_mb=1823.0,
+    time_to_first_token=0.08,
+    # Speculative-only fields:
+    acceptance_rate=0.78,
+    tokens_per_step=4.12,
+    num_speculation_rounds=18,
+    draft_time_total_ms=120.5,
+    verify_time_total_ms=310.2,
+    sampling_time_total_ms=9.3,
+)
+
+print(result.tokens_per_second)    # 5 / 0.44 ≈ 11.36
+print(result.latency_p50)          # median per-round latency
+print(result.latency_p95)          # 95th-percentile latency
+print(result.summary())
+# SD  | 5 tok | 11.4 tok/s | p50=90ms p95=100ms | mem=1823MB | accept=0.78 rounds=18
+
+# --- Serialise to JSONL for results files ---
+with open("results/run.jsonl", "a") as f:
+    f.write(result.to_json_line())   # one JSON object per line
+
+# --- Round-trip from JSON ---
+import json
+restored = GenerationResult.from_dict(json.loads(result.to_json_line()))
+
+# --- Config hashing for deduplication ---
+config = BenchmarkConfig(
+    model_pair_name="gpt2_dev",
+    K=4,
+    temperature=0.0,
+    max_new_tokens=200,
+    prompt_domain="code",
+    seed=42,
+)
+print(config.decoder_label)     # "SD-K4"
+print(config.config_hash())     # e.g. "a3f9c1b20d44"  (12-char SHA-256 prefix)
+```
+
+**Key computed properties on `GenerationResult`:**
+
+| Property | Formula |
+|---|---|
+| `tokens_per_second` | `len(generated_ids) / total_time` |
+| `latency_p50/p95/p99` | `np.percentile(per_token_latencies, 50/95/99)` |
+| `is_speculative` | `acceptance_rate is not None` |
+| `num_tokens` | `len(generated_ids)` |
+
+---
+
+### Run the full test suite
+
+```bash
+# Everything (109 tests total) — only test_kv_cache requires model weights
+pytest tests/ -v
+
+# Individual suites
+pytest tests/test_metrics.py  -v          # 66 tests, no GPU or model needed
+pytest tests/test_timer.py    -v          # 26 tests, CUDA tier auto-skipped on CPU
+pytest tests/test_kv_cache.py -v          # 17 tests, downloads GPT-2 on first run
+
+# Skip CUDA-only timer tests on a CPU machine
+pytest tests/test_timer.py -v -k "not cuda"
+```
+
+**Test coverage by file:**
+
+| File | Tests | Requires |
+|---|---|---|
+| `test_metrics.py` | 66 | numpy only |
+| `test_timer.py` | 26 (18 CPU + 8 CUDA) | torch; CUDA tier skipped if no GPU |
+| `test_kv_cache.py` | 17 | torch + transformers + GPT-2 weights |
+
+---
+
 ### Quick hardware validation with Ollama
 
 If you have [Ollama](https://ollama.com) installed, use this to check whether
@@ -352,7 +484,9 @@ VRAM requirements (approximate):
 - [x] Ollama convenience loader for hardware validation
 - [x] 150-prompt benchmark dataset across code / conversation / summarization
 - [x] `ModelWrapper` — forward pass, KV cache truncation, cache length utilities
-- [x] `tests/test_kv_cache.py` — 17 integration tests covering cache shape, truncation, and forward-with-cache
+- [x] `CUDATimer` / `CUDATimerCollection` — GPU-event-based latency measurement
+- [x] `GenerationResult` + `BenchmarkConfig` — result dataclasses with JSON serialisation
+- [x] 109 tests across `test_kv_cache.py`, `test_timer.py`, `test_metrics.py`
 
 ### Phase 2 — Core Decoding Engine 🔲
 - [ ] `src/decoding/autoregressive.py` — baseline greedy/sampling loop with KV cache
@@ -360,9 +494,9 @@ VRAM requirements (approximate):
 - [ ] `src/decoding/speculative.py` — full speculative decoding loop (K draft tokens → parallel target verification)
 
 ### Phase 3 — Profiling 🔲
-- [ ] `src/profiling/timer.py` — CUDA event-based latency measurement
+- [x] `src/profiling/timer.py` — CUDA event-based latency measurement ✅
 - [ ] `src/profiling/memory.py` — peak VRAM tracking per phase
-- [ ] `src/profiling/metrics.py` — token acceptance rate, tokens/second, speedup vs baseline
+- [x] `src/profiling/metrics.py` — `GenerationResult` + `BenchmarkConfig` dataclasses ✅
 
 ### Phase 4 — Benchmarks & Analysis 🔲
 - [ ] End-to-end benchmark runner across all 4 model pairs × 3 domains × K ∈ {1,2,4,8}
